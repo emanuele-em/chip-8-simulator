@@ -9,13 +9,6 @@ struct CPU{
 }
 
 impl CPU {
-    fn read_opcode(&self) -> u16{
-        let p = self.position_in_memory;
-        let op_byte1 = self.memory[p] as u16;
-        let op_byte2= self.memory[p+1] as u16;
-
-        op_byte1 << 8 | op_byte2
-    }
 
     fn run(&mut self) {
         loop {
@@ -50,6 +43,11 @@ impl CPU {
                         2 => { self.and_xy(x, y) },
                         3 => { self.xor_xy(x, y) },
                         4 => { self.add_xy(x, y) },
+                        5 => { self.sub_xy(x, y) },
+                        6 => { self.lsb(x) },
+                        7 => { self.sub_yx(x, y) },
+                        8 => { self.msb(x) },
+                        9 => { self.sne(x, y) },
                         _ => { todo!("opcode: {:04x}", opcode)},
                     }
                 },
@@ -112,6 +110,44 @@ impl CPU {
         } else {
             self.registers[0xF] = 0;
         }
+    }
+
+    fn sub_xy(&mut self, x: u8, y: u8) {
+        let arg1 = self.registers[x as usize];
+        let arg2 = self.registers[y as usize];
+
+        let (val, overflow_detect) = arg1.overflowing_sub(arg2);
+        self.registers[x as usize] = val;
+
+        if overflow_detect {
+            self.registers[0xF] = 1;
+        } else {
+            self.registers[0xF] = 0;
+        }
+    }
+
+    fn sub_yx(&mut self, x: u8, y: u8) {
+        let arg1 = self.registers[x as usize];
+        let arg2 = self.registers[y as usize];
+
+        let (val, overflow_detect) = arg2.overflowing_sub(arg1);
+        self.registers[x as usize] = val;
+
+        if overflow_detect {
+            self.registers[0xF] = 1;
+        } else {
+            self.registers[0xF] = 0;
+        }
+    }
+
+    fn lsb(&mut self, x: u8) {
+        self.registers[0xF] = self.registers[x] & 1;
+        self.registers[x] >>= 1;
+    }
+
+    fn msb(&mut self, x: u8) {
+        self.registers[0x0f] = (self.registers[x] & 0b10000000) >> 7;
+        self.registers[x] <<= 1;
     }
 
     fn and_xy(&mut self, x: u8, y: u8){
